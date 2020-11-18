@@ -1,192 +1,121 @@
 package nerdj.parser;
 
-import org.jfugue.midi.MidiDictionary;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import org.jfugue.pattern.Pattern;
 
 public class Parser {
 
-    private final List<Character> NATURAL_NOTES = Arrays.asList('A', 'B', 'C', 'D', 'E', 'F', 'G');
-    private final List<Character> OTHER_VOWELS = Arrays.asList('O', 'I', 'U');
-    private final char PAUSE = ' ';
-    private final char DOUBLE_VOLUME = '+';
-    private final char BACK_TO_INITIAL_VOLUME = '-';
-    private final char RANDOM_NOTE_1 = '?';
-    private final char RANDOM_NOTE_2 = '.';
+    private final String NATURAL_NOTES = "[ABCDEFG]";
 
-    StringBuilder jfugueSintaxString = new StringBuilder();
+    private final String OCTAVE_SETTER_1 = ".";
+    private final String OCTAVE_SETTER_2 = "?";
+    private final String VOLUME_SETTER = " ";
+    private final String INSTRUMENT_DIGIT_SETTER = "[0-9]";
 
-    private int initialVolume;
-    private int initialBPM;
-    private int initialOctave;
+    private final String AGOGO_INSTRUMENT = "!";
+    private final int AGOGO_COD = 113;
+
+    private String HARPSICHORD_INSTRUMENT = "[OuUuIi]";
+    private final int HARPSICHORD_COD = 6;
+
+    private final String TUBULAR_BELLS_INSTRUMENT = "\n";
+    private final int TUBULAR_BELLS_COD = 14;
+
+    private final String PAN_FLUTE_INSTRUMENT = ";";
+    private final int PAN_FLUTE_COD = 75;
+
+    private final String CHURCH_ORGAN_INSTRUMENT = ",";
+    private final int CHURCH_ORGAN_COD = 19;
 
 
-    public Parser(int initialVolume, int initialBPM, int initialOctave) {
-        this.initialVolume = initialVolume;
-        this.initialBPM = initialBPM;
-        this.initialOctave = initialOctave;
-    }
+    public Pattern parser(int initialVolume, int initialBPM, int initialOctave, int initialInstrument, String musicString){
 
-    public boolean isInstrument(String instrument){
-        return MidiDictionary.INSTRUMENT_STRING_TO_BYTE.containsKey(instrument);
-    }
+        Pattern pattern = new Pattern().setTempo(initialBPM);
 
-    public String generateRandomNote(){
-        Random generator = new Random();
-        return String.valueOf(Character.toChars(generator.nextInt(7) + 65));
-    }
+        setPatternVolume(pattern, initialVolume);
+        setPatternInstrument(pattern, initialInstrument);
 
-    public String parser(String musicString) {
+        String previousChar = " ";
+        int actualInstrument = initialInstrument;
+        int actualOctave = initialOctave;
+        int actualVolume = initialVolume;
 
-        //Separa em NL para verificar os instrumentos
-        String[] musicStringLines = musicString.split("\n");
+        String[] musicStringCharacters = musicString.split("(?!^)");
 
-        for(String line : musicStringLines) {
-            if(isInstrument(line)){
-                setInstrument(line);
+        for(String actualChar:musicStringCharacters){
 
+            // testar se é nota natural
+            if(actualChar.matches(NATURAL_NOTES)){
+                pattern.add(actualChar + actualOctave);
+
+            // testar se é !
+            } else if(actualChar.equals(AGOGO_INSTRUMENT)){
+                actualInstrument = AGOGO_COD;
+                setPatternInstrument(pattern, AGOGO_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é O, U, I
+            } else if (actualChar.matches(HARPSICHORD_INSTRUMENT)){
+                actualInstrument = HARPSICHORD_COD;
+                setPatternInstrument(pattern, HARPSICHORD_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é nova linha
+            } else if(actualChar.equals(TUBULAR_BELLS_INSTRUMENT)){
+                actualInstrument = TUBULAR_BELLS_COD;
+                setPatternInstrument(pattern, TUBULAR_BELLS_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é ;
+            } else if(actualChar.equals(PAN_FLUTE_INSTRUMENT)){
+                actualInstrument = PAN_FLUTE_COD;
+                setPatternInstrument(pattern, PAN_FLUTE_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é ,
+            } else if(actualChar.equals(CHURCH_ORGAN_INSTRUMENT)){
+                actualInstrument = CHURCH_ORGAN_COD;
+                setPatternInstrument(pattern, CHURCH_ORGAN_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é dígito
+            } else if(actualChar.matches(INSTRUMENT_DIGIT_SETTER)){
+                actualInstrument = actualInstrument + Integer.parseInt(actualChar);
+                setPatternInstrument(pattern, actualInstrument);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é caractere espaço
+            } else if(actualChar.equals(VOLUME_SETTER)){
+                actualVolume = actualVolume * 2;
+                setPatternVolume(pattern, actualVolume);
+
+            // testar é ? ou .
+            } else if(actualChar.equals(OCTAVE_SETTER_1) || actualChar.equals(OCTAVE_SETTER_2)){
+                if (actualOctave == 10){
+                    actualOctave = initialOctave;
+                } else {
+                    actualOctave++;
+                }
+
+            // qualquer outro caractere (incluindo a, b, c, d, e, f, g e consoantes)
             } else {
-                char[] lineChars = line.toCharArray();
-                char previousChar = ' ';
-                char actualChar;
-                char nextChar;
-
-                int actualOctave = initialOctave;
-                int actualVolume = initialVolume;
-                int actualBPM = initialBPM;
-
-                for(int i = 0; i < lineChars.length; i ++){
-                    actualChar = lineChars[i];
-                    nextChar = (i == lineChars.length - 1) ? ' ' : lineChars[i + 1];
-
-                    // Testa se é A, B, C, D, E, F ou G. Se for B, testa se é bpm B+ ou B-
-                    if(NATURAL_NOTES.contains(Character.toUpperCase(actualChar))) {
-                        if (Character.toUpperCase(actualChar) == 'B') {     // Se for B, testa se na verdade não é para aumentar o BPM verificando o proximo caractere
-                            if (nextChar == '+') {
-                                actualBPM = actualBPM + 50;
-                                setBPM(actualBPM);
-                                previousChar = nextChar;
-                                i ++;
-                            } else if (nextChar == '-') {
-                                actualBPM = actualBPM - 50;
-                                setBPM(actualBPM);
-                                previousChar = nextChar;
-                                i ++;
-                            } else {
-                                setNote(actualChar, actualOctave);
-                                previousChar = actualChar;
-                            }
-                        } else {
-                            setNote(actualChar, actualOctave);
-                            previousChar = actualChar;
-                        }
-
-                    // Testa se é O, U ou I. Se for O, testa se é oitava O+ ou O-
-                    } else if(OTHER_VOWELS.contains(Character.toUpperCase(actualChar))) {
-                        if (Character.toUpperCase(actualChar) == 'O'){
-                            if (nextChar == '+') {
-                                actualOctave = actualOctave + 1;
-                                previousChar = nextChar;
-                                i ++;
-                            } else if (nextChar == '-') {
-                                actualOctave = actualOctave - 1;
-                                previousChar = nextChar;
-                                i ++;
-                            } else {
-                                if (NATURAL_NOTES.contains(Character.toUpperCase(previousChar))){
-                                    setNote(previousChar, actualOctave);
-                                    previousChar = actualChar;
-                                } else {
-                                    setPause();
-                                }
-                            }
-                        } else {
-                            if (NATURAL_NOTES.contains(Character.toUpperCase(previousChar))){
-                                setNote(previousChar, actualOctave);
-                                previousChar = actualChar;
-                            } else {
-                                setPause();
-                            }
-                        }
-
-                    // Testa se é para aumentar o volume
-                    } else if(actualChar == DOUBLE_VOLUME){
-                        actualVolume = actualVolume * 2;
-                        setVolume(actualVolume);
-
-                    // Testa se é para aumentar o volume
-                    } else if(actualChar == BACK_TO_INITIAL_VOLUME){
-                        actualVolume = initialVolume;
-                        setVolume(actualVolume);
-
-                    // Testa se é ? ou . para inserir uma nota aleatória
-                    } else if(actualChar == RANDOM_NOTE_1 || actualChar == RANDOM_NOTE_2){
-                        setRandomNote();
-
-                    // Testa se é espaço em branco para inserir uma pausa
-                    } else if(actualChar == PAUSE){
-                        setPause();
-                    }
+                if(previousChar.matches(NATURAL_NOTES)){
+                    pattern.add(previousChar + actualOctave);
+                } else {
+                    pattern.add("R");
                 }
             }
+            previousChar = actualChar;
         }
-        return jfugueSintaxString.toString();
+
+        return pattern;
     }
 
-
-    private void setInstrument(String instrument){
-        jfugueSintaxString.append("I[").append(instrument).append("]").append(" ");
+    public void setPatternVolume(Pattern pattern, int volume){
+        pattern.add("X[" +  volume + "]");
     }
 
-    private void setBPM(int bpm){
-        jfugueSintaxString.append("T[").append(bpm).append("]").append(" ");
+    public void setPatternInstrument(Pattern pattern, int instrument){
+        pattern.add("I" +  instrument);
     }
 
-    private void setNote(char note, int octave){
-        jfugueSintaxString.append(note).append(octave).append(" ");
-    }
-
-    private void setRandomNote(){
-        jfugueSintaxString.append(generateRandomNote()).append(" ");
-    }
-
-    private void setPause(){
-        jfugueSintaxString.append("R").append(" ");
-    }
-
-    private void setVolume(int volume){
-        jfugueSintaxString.append("X[").append(volume).append("]").append(" ");
-    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

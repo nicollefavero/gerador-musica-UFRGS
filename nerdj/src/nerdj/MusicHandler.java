@@ -1,27 +1,34 @@
 package nerdj;
 
+import org.jfugue.midi.MidiFileManager;
 import org.jfugue.pattern.Pattern;
 import org.jfugue.player.Player;
 
+import java.io.File;
+import java.io.IOException;
+
 public class MusicHandler {
 
-    Player player;
+    private Player player;
+    private Pattern pattern;
 
     public MusicHandler() {
         this.player = new Player();
     }
 
-    public void playSong(String string) {
-        Pattern pattern = new Pattern(string);
-        this.player.play(pattern);
+    public void setPattern(Pattern pattern) {
+        this.pattern = pattern;
+    }
+
+    public void playSong() {
+        player.play(this.pattern);
+    }
+
+    public void saveSong() throws IOException {
+        File midiFile = new File("song.midi");
+        midiFile.createNewFile();
+
+        MidiFileManager.savePatternToMidi(this.pattern, midiFile);
     }
 }
-
-
-
-
-//    Player player = new Player();
-//    Pattern pattern1 = new Pattern("V0 I[" + instrument + "] Dq Eq Gi Gi Gi Gs Gi Gs Gi");
-//        pattern1.add("V0 I[" + instrument + "] Di Ei Gi Gi Gi Gs Gi Gs Gi", 2).add("V0 I[" + instrument + "] Gi Gi F#h").repeat(4);
-//        player.play(pattern1);
 

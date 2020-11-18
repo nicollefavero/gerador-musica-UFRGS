@@ -1,0 +1,365 @@
+import java.io.IOException;
+
+public class Main {
+
+    public static void main(String[] args) throws IOException {
+        new WindowHandler().load();
+    }
+
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
+import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+
+public class WindowHandler extends Application {
+
+    @Override
+    public void start(Stage primaryStage) throws Exception{
+        Parent root = FXMLLoader.load(getClass().getResource("nerdj.fxml"));
+        primaryStage.setTitle("nerDJ True Star: Gerador de Musica");
+        primaryStage.setScene(new Scene(root, 1280, 720));
+        primaryStage.setResizable(false);
+        primaryStage.show();
+    }
+
+    public void load() {
+        launch();
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
+import javafx.fxml.FXML;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import nerdj.parser.Parser;
+
+import java.io.IOException;
+
+public class Controller {
+
+    @FXML
+    TextArea musicString;
+
+    @FXML
+    TextField initialInstrument;
+
+    @FXML
+    TextField initialVolume;
+
+    @FXML
+    TextField initialOctave;
+
+    @FXML
+    TextField initialBPM;
+
+    private MusicHandler musicHandler = new MusicHandler();
+    private Parser parser = new Parser();
+    private String previousMusicString = "";
+
+    public void run(){
+        if(!compareString()){
+            musicHandler.setPattern(this.parser.parser(getInitialVolume(), getInitialBPM(), getInitialOctave(), getInitialInstrument(), musicString.getText()));
+        }
+        musicHandler.playSong();
+    }
+
+    public void createMidi() throws IOException {
+        if(!compareString()){
+            musicHandler.setPattern(this.parser.parser(getInitialVolume(), getInitialBPM(), getInitialOctave(), getInitialInstrument(), musicString.getText()));
+        }
+        musicHandler.saveSong();
+    }
+
+    private boolean compareString(){
+        return musicString.toString().equals(previousMusicString);
+    }
+
+    private int getInitialVolume(){
+        try{
+            return Math.abs(Integer.parseInt(initialVolume.getText()));
+        } catch (NumberFormatException e) {
+            return 10200;
+        }
+    }
+
+    private int getInitialInstrument(){
+        try{
+            return Math.abs(Integer.parseInt(initialOctave.getText())) - 1;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private int getInitialOctave(){
+        try{
+            return Math.abs(Integer.parseInt(initialOctave.getText())) % 11;
+        } catch (NumberFormatException e) {
+            return 5;
+        }
+    }
+
+    private int getInitialBPM(){
+        try{
+            return Math.abs(Integer.parseInt(initialBPM.getText()));
+        } catch (NumberFormatException e) {
+            return 120;
+        }
+    }
+
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
+import org.jfugue.pattern.Pattern;
+
+public class Parser {
+
+    private final String NATURAL_NOTES = "[ABCDEFG]";
+
+    private final String OCTAVE_SETTER_1 = ".";
+    private final String OCTAVE_SETTER_2 = "?";
+    private final String VOLUME_SETTER = " ";
+    private final String INSTRUMENT_DIGIT_SETTER = "[0-9]";
+
+    private final String AGOGO_INSTRUMENT = "!";
+    private final int AGOGO_COD = 113;
+
+    private String HARPSICHORD_INSTRUMENT = "[OuUuIi]";
+    private final int HARPSICHORD_COD = 6;
+
+    private final String TUBULAR_BELLS_INSTRUMENT = "\n";
+    private final int TUBULAR_BELLS_COD = 14;
+
+    private final String PAN_FLUTE_INSTRUMENT = ";";
+    private final int PAN_FLUTE_COD = 75;
+
+    private final String CHURCH_ORGAN_INSTRUMENT = ",";
+    private final int CHURCH_ORGAN_COD = 19;
+
+
+    public Pattern parser(int initialVolume, int initialBPM, int initialOctave, int initialInstrument, String musicString){
+
+        Pattern pattern = new Pattern().setTempo(initialBPM);
+
+        setPatternVolume(pattern, initialVolume);
+        setPatternInstrument(pattern, initialInstrument);
+
+        String previousChar = " ";
+        int actualInstrument = initialInstrument;
+        int actualOctave = initialOctave;
+        int actualVolume = initialVolume;
+
+        String[] musicStringCharacters = musicString.split("(?!^)");
+
+        for(String actualChar:musicStringCharacters){
+
+            // testar se é nota natural
+            if(actualChar.matches(NATURAL_NOTES)){
+                pattern.add(actualChar + actualOctave);
+
+            // testar se é !
+            } else if(actualChar.equals(AGOGO_INSTRUMENT)){
+                actualInstrument = AGOGO_COD;
+                setPatternInstrument(pattern, AGOGO_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é O, U, I
+            } else if (actualChar.matches(HARPSICHORD_INSTRUMENT)){
+                actualInstrument = HARPSICHORD_COD;
+                setPatternInstrument(pattern, HARPSICHORD_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é nova linha
+            } else if(actualChar.equals(TUBULAR_BELLS_INSTRUMENT)){
+                actualInstrument = TUBULAR_BELLS_COD;
+                setPatternInstrument(pattern, TUBULAR_BELLS_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é ;
+            } else if(actualChar.equals(PAN_FLUTE_INSTRUMENT)){
+                actualInstrument = PAN_FLUTE_COD;
+                setPatternInstrument(pattern, PAN_FLUTE_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é ,
+            } else if(actualChar.equals(CHURCH_ORGAN_INSTRUMENT)){
+                actualInstrument = CHURCH_ORGAN_COD;
+                setPatternInstrument(pattern, CHURCH_ORGAN_COD);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é dígito
+            } else if(actualChar.matches(INSTRUMENT_DIGIT_SETTER)){
+                actualInstrument = actualInstrument + Integer.parseInt(actualChar);
+                setPatternInstrument(pattern, actualInstrument);
+                setPatternVolume(pattern, actualVolume);
+
+            // testar se é caractere espaço
+            } else if(actualChar.equals(VOLUME_SETTER)){
+                actualVolume = actualVolume * 2;
+                setPatternVolume(pattern, actualVolume);
+
+            // testar é ? ou .
+            } else if(actualChar.equals(OCTAVE_SETTER_1) || actualChar.equals(OCTAVE_SETTER_2)){
+                if (actualOctave == 10){
+                    actualOctave = initialOctave;
+                } else {
+                    actualOctave++;
+                }
+
+            // qualquer outro caractere (incluindo a, b, c, d, e, f, g e consoantes)
+            } else {
+                if(previousChar.matches(NATURAL_NOTES)){
+                    pattern.add(previousChar + actualOctave);
+                } else {
+                    pattern.add("R");
+                }
+            }
+            previousChar = actualChar;
+        }
+
+        return pattern;
+    }
+
+    public void setPatternVolume(Pattern pattern, int volume){
+        pattern.add("X[" +  volume + "]");
+    }
+
+    public void setPatternInstrument(Pattern pattern, int instrument){
+        pattern.add("I" +  instrument);
+    }
+
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
+import org.jfugue.midi.MidiFileManager;
+import org.jfugue.pattern.Pattern;
+import org.jfugue.player.Player;
+
+import java.io.File;
+import java.io.IOException;
+
+public class MusicHandler {
+
+    private Player player;
+    private Pattern pattern;
+
+    public MusicHandler() {
+        this.player = new Player();
+    }
+
+    public void setPattern(Pattern pattern) {
+        this.pattern = pattern;
+    }
+
+    public void playSong() {
+        player.play(this.pattern);
+    }
+
+    public void saveSong() throws IOException {
+        File midiFile = new File("song.midi");
+        midiFile.createNewFile();
+
+        MidiFileManager.savePatternToMidi(this.pattern, midiFile);
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
+
+
+<Pane fx:controller="nerdj.Controller" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="720.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <Pane layoutX="33.0" layoutY="25.0">
+         <children>
+            <Text layoutX="512.0" layoutY="23.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Escreva a Música">
+               <font>
+                  <Font name="Comic Sans MS" size="24.0" />
+               </font>
+            </Text>
+            <TextArea fx:id="musicString" layoutY="34.44921875" prefHeight="200.0" prefWidth="1215.0" />
+         </children>
+      </Pane>
+      <Pane layoutX="220.0" layoutY="333.0">
+         <children>
+            <Text layoutX="27.0" layoutY="19.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Instrumento Inicial">
+               <font>
+                  <Font name="Comic Sans MS" size="14.0" />
+               </font>
+            </Text>
+            <TextField fx:id="initialInstrument" layoutY="21.4287109375" prefHeight="33.0" prefWidth="181.0">
+               <tooltip>
+                  <Tooltip text="Deve ser um número inteiro no padrão MIDI. Define o primeiro instrumento tocado." />
+               </tooltip>
+            </TextField>
+         </children>
+      </Pane>
+      <Pane layoutX="853.0" layoutY="333.0">
+         <children>
+            <Text layoutX="45.0" layoutY="20.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Volume Inicial">
+               <font>
+                  <Font name="Comic Sans MS" size="14.0" />
+               </font>
+            </Text>
+            <TextField fx:id="initialVolume" layoutY="21.4287109375" prefHeight="33.0" prefWidth="181.0">
+               <tooltip>
+                  <Tooltip text="Deve ser um número inteiro.  Define o volume inicial." />
+               </tooltip>
+            </TextField>
+         </children>
+      </Pane>
+      <Pane layoutX="220.0" layoutY="453.0">
+         <children>
+            <Text layoutX="46.0" layoutY="20.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Oitava Inicial">
+               <font>
+                  <Font name="Comic Sans MS" size="14.0" />
+               </font>
+            </Text>
+            <TextField fx:id="initialOctave" layoutY="21.4287109375" prefHeight="33.0" prefWidth="181.0">
+               <tooltip>
+                  <Tooltip text="Deve ser um número inteiro de 0 a 10. Define a oitava das notas, até que seja modificada na música." />
+               </tooltip>
+            </TextField>
+         </children>
+      </Pane>
+      <Pane layoutX="853.0" layoutY="453.0">
+         <children>
+            <Text layoutX="76.0" layoutY="20.0" strokeType="OUTSIDE" strokeWidth="0.0" text="BPM">
+               <font>
+                  <Font name="Comic Sans MS" size="14.0" />
+               </font>
+            </Text>
+            <TextField fx:id="initialBPM" layoutY="21.4287109375" prefHeight="33.0" prefWidth="181.0">
+               <tooltip>
+                  <Tooltip text="Deve ser um número inteiro.  Define o BPM da música." />
+               </tooltip>
+            </TextField>
+         </children>
+      </Pane>
+      <Button onAction="#run" layoutX="401.0" layoutY="609.0" mnemonicParsing="false" text="Play Song!">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Button>
+      <Button onAction="#createMidi" layoutX="749.0" layoutY="609.0" mnemonicParsing="false" text="Create MIDI File">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Button>
+   </children>
+</Pane>

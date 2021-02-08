@@ -1,5 +1,8 @@
-# nerDJ True Star
+![alt text](https://github.com/nicollefavero/gerador-musica-nerdj/blob/master/imagens/image-readme.png "Cool nerd DJ")
 
-Usar o jdk-1.8 (site da oracle) ou openjdk-1.8 e openjfx-1.8 (opensource).
-O openjfx não tinha a versão para o meu linux (apenas o 11).
+# Gerador de Música: nerDJ True Star
 
+Trabalho final da disciplina de Técnicas de Construção de Programas 2020/1 cujo objetivo é implementar um programa que, dado uma string, toca uma música sendo possível salvar essa música em um arquivo midi.
+
+### Observações
+Foi utilizado openjdk-1.8 com openjfx-1.8.
